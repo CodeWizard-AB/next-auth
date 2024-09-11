@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import FormError from "@/components/FormError";
 import FormSuccess from "../FormSuccess";
 import { useState, useTransition } from "react";
-import { signup } from "@/actions/signup";
+import { signup } from "@/actions/users";
 
 export default function SignupForm() {
 	const [error, setError] = useState<string | undefined>();
