@@ -3,37 +3,51 @@
 import { z } from "zod";
 import { LoginSchema, SignupSchema } from "@/schemas";
 import { signIn } from "@/actions/auth";
+import User from "@/models/userModel";
+import { DEFAULT_LOGIN_REDIRECT } from "@/routes";
+import { AuthError } from "next-auth";
 
 export const login = async (data: z.infer<typeof LoginSchema>) => {
 	const validatedFields = LoginSchema.safeParse(data);
-
-	await new Promise((resolve) => {
-		setTimeout(() => {
-			resolve(data);
-		}, 2000);
-	});
 
 	if (!validatedFields.success) {
 		return { error: "Invalid fields" };
 	}
 
-	await signIn("credentials", { ...validatedFields.data, redirect: false });
+	try {
+		await signIn("credentials", {
+			...validatedFields.data,
+			redirectTo: DEFAULT_LOGIN_REDIRECT,
+		});
 
-	return { success: "Email sent" };
+		return { success: "Email sent" };
+	} catch (error) {
+		if (error instanceof AuthError) {
+			switch (error.type) {
+				case "CredentialsSignin":
+					return { error: "Invalid credentials!" };
+				default:
+					return { error: "Something went wrong" };
+			}
+		} else throw error;
+	}
 };
 
 export const signup = async (data: z.infer<typeof SignupSchema>) => {
 	const validatedFields = SignupSchema.safeParse(data);
 
-	await new Promise((resolve) => {
-		setTimeout(() => {
-			resolve(data);
-			console.log(data);
-		}, 2000);
-	});
-
 	if (!validatedFields.success) {
 		return { error: "Invalid fields" };
+	}
+
+	const { email } = validatedFields.data;
+
+	const user = await User.findOne({ email });
+
+	if (user) {
+		return { error: "User already exists!" };
+	} else {
+		await User.create(validatedFields.data);
 	}
 
 	return { success: "Email sent" };

@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import User from "@/models/userModel";
+import { LoginSchema } from "@/schemas";
 
 export const {
 	handlers: { GET, POST },
@@ -24,16 +26,19 @@ export const {
 		Credentials({
 			async authorize(credentials) {
 				if (credentials === null) return null;
-				try {
-					let user = null;
-					user = credentials;
-					console.log(credentials);
-					return user;
-				} catch (error) {
-					if (error instanceof Error) {
-						throw new Error(error.message);
+
+				const validatedFields = LoginSchema.safeParse(credentials);
+
+				if (validatedFields.success) {
+					const { email, password } = validatedFields.data;
+					const user = await User.findOne({ email });
+
+					if (!user || !user.password) return null;
+
+					if (user && (await user.isPasswordCorrect(password))) {
+						return user;
 					} else {
-						throw new Error("An unknown error occurred");
+						return { error: "User not registered with this email" };
 					}
 				}
 			},

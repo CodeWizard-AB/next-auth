@@ -1,12 +1,13 @@
-import bcrypt from "bcrypt";
-import { model, Schema } from "mongoose";
+import bcrypt from "bcryptjs";
+import { model, models, Schema } from "mongoose";
 import validator from "validator";
 
 interface IUser extends Document {
 	name: string;
 	password: string;
 	email: string;
-	role: string;
+	role: "user" | "admin";
+	isPasswordCorrect(password: string): Promise<boolean>;
 }
 
 const userSchema = new Schema<IUser>(
@@ -46,8 +47,9 @@ userSchema.pre("save", async function (next) {
 
 // * INSTANCE METHODS
 userSchema.methods.isPasswordCorrect = async function (password: string) {
-	await bcrypt.compare(password, this.password);
+	return await bcrypt.compare(password, this.password);
 };
 
-const User = model<IUser>("User", userSchema);
+const User = models?.User || model<IUser>("User", userSchema);
+
 export default User;
