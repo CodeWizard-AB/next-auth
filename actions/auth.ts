@@ -1,8 +1,17 @@
-import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import Github from "next-auth/providers/github";
 import Credentials from "next-auth/providers/credentials";
 import User from "@/models/userModel";
 import { LoginSchema } from "@/schemas";
+import NextAuth, { DefaultSession } from "next-auth";
+
+declare module "next-auth" {
+	interface Session {
+		user: {
+			role: "user" | "admin";
+		} & DefaultSession["user"];
+	}
+}
 
 export const {
 	handlers: { GET, POST },
@@ -11,36 +20,68 @@ export const {
 	auth,
 } = NextAuth({
 	session: { strategy: "jwt" },
+	callbacks: {
+		async session({ token, session }) {
+			if (token.sub && session.user) {
+				session.user.id = token.sub;
+			}
+
+			if (token.role && session.user) {
+				session.user.role = token.role as "admin" | "user";
+			}
+
+			return session;
+		},
+		async signIn({ user, account }) {
+			try {
+				const existingUser = await User.findOne({ email: user.email });
+
+				if (!existingUser) {
+					const newUser = new User({
+						name: user?.name,
+						email: user?.email,
+						image: user?.image,
+						authProvider: account?.provider,
+					});
+
+					await newUser.save();
+				} else {
+					existingUser.name = user.name || existingUser.name;
+					existingUser.image = user.image || existingUser.image;
+					existingUser.authProvider =
+						account?.provider || existingUser.authProvider;
+					await existingUser.save();
+				}
+
+				return true;
+			} catch (_) {
+				return false;
+			}
+		},
+	},
 	providers: [
+		Github({
+			clientId: process.env.AUTH_GITHUB_ID as string,
+			clientSecret: process.env.AUTH_GITHUB_SECRET as string,
+		}),
 		Google({
 			clientId: process.env.AUTH_GOOGLE_ID as string,
 			clientSecret: process.env.AUTH_GOOGLE_SECRET as string,
-			authorization: {
-				params: {
-					prompt: "consent",
-					access_type: "offline",
-					response_type: "code",
-				},
-			},
 		}),
 		Credentials({
 			async authorize(credentials) {
-				if (credentials === null) return null;
-
 				const validatedFields = LoginSchema.safeParse(credentials);
 
 				if (validatedFields.success) {
 					const { email, password } = validatedFields.data;
-					const user = await User.findOne({ email });
+					const user = await User.findOne({ email }).select("+password");
 
 					if (!user || !user.password) return null;
 
-					if (user && (await user.isPasswordCorrect(password))) {
-						return user;
-					} else {
-						return { error: "User not registered with this email" };
-					}
+					if (await user.isPasswordCorrect(password)) return user;
 				}
+
+				return null;
 			},
 		}),
 	],

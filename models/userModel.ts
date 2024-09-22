@@ -1,12 +1,15 @@
 import bcrypt from "bcryptjs";
-import { model, models, Schema } from "mongoose";
 import validator from "validator";
+import { model, models, Schema } from "mongoose";
 
 interface IUser extends Document {
 	name: string;
 	password: string;
 	email: string;
+	image: string;
 	role: "user" | "admin";
+	isVerified: boolean;
+	authProvider: string;
 	isPasswordCorrect(password: string): Promise<boolean>;
 }
 
@@ -15,10 +18,16 @@ const userSchema = new Schema<IUser>(
 		name: { type: String, required: [true, "Name is required"], trim: true },
 		password: {
 			type: String,
-			required: [true, "Password is required"],
 			minLength: [8, "Minimun 8 characters required for password"],
 			select: false,
 			trim: true,
+			validate: {
+				validator(password) {
+					if (this.authProvider === "credentials" && !password) return false;
+					return true;
+				},
+				message: "Password is required",
+			},
 		},
 		email: {
 			type: String,
@@ -28,14 +37,20 @@ const userSchema = new Schema<IUser>(
 			trim: true,
 			validate: [validator.isEmail, "Invalid email address"],
 		},
+		image: { type: String, default: null },
 		role: {
 			type: String,
 			enum: ["user", "admin"],
 			default: "user",
 		},
+		authProvider: { type: String, required: true },
+		isVerified: { type: Boolean, required: true, default: false },
 	},
 	{ timestamps: true }
 );
+
+// * ADD Indexes
+userSchema.index({ email: 1 });
 
 // * DOCUMENT MIDDLEWARE
 userSchema.pre("save", async function (next) {

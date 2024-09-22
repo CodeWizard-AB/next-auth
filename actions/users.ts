@@ -29,7 +29,9 @@ export const login = async (data: z.infer<typeof LoginSchema>) => {
 				default:
 					return { error: "Something went wrong" };
 			}
-		} else throw error;
+		}
+
+		throw error;
 	}
 };
 
@@ -54,8 +56,6 @@ export const signup = async (data: z.infer<typeof SignupSchema>) => {
 };
 
 export const socialLogin = async (formdata: FormData) => {
-	const social = formdata.get("social");
-	await signIn(social as string, { redirectTo: "/" });
+	const social = formdata.get("social") as string;
+	await signIn(social, { redirectTo: DEFAULT_LOGIN_REDIRECT });
 };
-
-export const logout = async () => {};
