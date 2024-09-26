@@ -19,6 +19,10 @@ export const {
 	signOut,
 	auth,
 } = NextAuth({
+	pages: {
+		signIn: "/auth/login",
+		error: "/auth/error",
+	},
 	session: { strategy: "jwt" },
 	callbacks: {
 		async session({ token, session }) {
@@ -33,30 +37,29 @@ export const {
 			return session;
 		},
 		async signIn({ user, account }) {
-			try {
-				const existingUser = await User.findOne({ email: user.email });
+			const existingUser = await User.findOne({ email: user.email });
 
-				if (!existingUser) {
-					const newUser = new User({
-						name: user?.name,
-						email: user?.email,
-						image: user?.image,
-						authProvider: account?.provider,
-					});
+			if (!existingUser) {
+				const newUser = new User({
+					name: user?.name,
+					email: user?.email,
+					image: user?.image,
+					authProvider: account?.provider,
+				});
 
-					await newUser.save();
-				} else {
-					existingUser.name = user.name || existingUser.name;
-					existingUser.image = user.image || existingUser.image;
-					existingUser.authProvider =
-						account?.provider || existingUser.authProvider;
-					await existingUser.save();
-				}
-
-				return true;
-			} catch (_) {
-				return false;
+				await newUser.save();
+			} else {
+				existingUser.name = user.name || existingUser.name;
+				existingUser.image = user.image || existingUser.image;
+				existingUser.authProvider =
+					account?.provider || existingUser.authProvider;
+				await existingUser.save();
 			}
+
+			const findUser = await User.findById(user.id);
+			if (!findUser?.isVerified) return false;
+
+			return true;
 		},
 	},
 	providers: [

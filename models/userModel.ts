@@ -10,6 +10,9 @@ interface IUser extends Document {
 	role: "user" | "admin";
 	isVerified: boolean;
 	authProvider: string;
+	isActive: boolean;
+	verificationToken: string;
+	verificationTokenExpires: Date;
 	isPasswordCorrect(password: string): Promise<boolean>;
 }
 
@@ -45,6 +48,13 @@ const userSchema = new Schema<IUser>(
 		},
 		authProvider: { type: String, required: true },
 		isVerified: { type: Boolean, required: true, default: false },
+		isActive: {
+			type: Boolean,
+			default: true,
+			select: false,
+		},
+		verificationToken: String,
+		verificationTokenExpires: Date,
 	},
 	{ timestamps: true }
 );
