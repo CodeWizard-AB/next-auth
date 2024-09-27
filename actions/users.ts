@@ -1,5 +1,6 @@
 "use server";
 
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import {
 	LoginSchema,
@@ -7,12 +8,29 @@ import {
 	ResetSchema,
 	SignupSchema,
 } from "@/schemas";
-import { signIn } from "@/actions/auth";
+import { auth, signIn, signOut } from "@/actions/auth";
 import User from "@/models/userModel";
 import { DEFAULT_LOGIN_REDIRECT } from "@/routes";
 import { AuthError } from "next-auth";
-import { generateResetToken, generateVerficationToken } from "@/lib/tokens";
-import { sendResetEmail, sendVerificationEmail } from "@/lib/mail";
+import {
+	generateResetToken,
+	generateTwoFactorToken,
+	generateVerficationToken,
+} from "@/lib/tokens";
+import {
+	sendResetEmail,
+	sendTwoFactorEmail,
+	sendVerificationEmail,
+} from "@/lib/mail";
+
+export const getCurrentUser = async () => {
+	const session = await auth();
+	return session?.user;
+};
+
+export const logout = async () => {
+	await signOut();
+};
 
 export const login = async (data: z.infer<typeof LoginSchema>) => {
 	const validatedFields = LoginSchema.safeParse(data);
@@ -21,12 +39,35 @@ export const login = async (data: z.infer<typeof LoginSchema>) => {
 		return { error: "Invalid fields" };
 	}
 
-	const user = await User.findOne({ email: validatedFields.data.email });
+	const { email, code, password } = validatedFields.data;
+	const user = await User.findOne({ email }).select("+password");
 
-	if (!user.isVerified) {
-		const token = await generateVerficationToken(validatedFields.data.email);
-		await sendVerificationEmail(validatedFields.data.email, token);
+	if (!user) return { error: "User has not registered!" };
+	if (!(await bcrypt.compare(password, user.password))) {
+		return { error: "Invalid credentials" };
+	}
+
+	if (!user.emailVerified) {
+		const token = await generateVerficationToken(user.email);
+		await sendVerificationEmail(user.email, token);
 		return { success: "Confirmation email sent!" };
+	}
+
+	if (!user.twoFactorVerified) {
+		if (!code) {
+			const token = await generateTwoFactorToken(user.email);
+			await sendTwoFactorEmail(user.email, token);
+			return { twoFactor: true };
+		} else {
+			if (user.twoFactorToken !== code || !user.twoFactorToken) {
+				return { error: "Invalid code!" };
+			}
+			const hasExpired = new Date(user.twoFactorExpires) < new Date();
+			if (hasExpired) {
+				return { error: "Code expired" };
+			}
+			await User.updateOne({ email }, { twoFactorVerified: true });
+		}
 	}
 
 	try {
@@ -36,8 +77,6 @@ export const login = async (data: z.infer<typeof LoginSchema>) => {
 				redirectTo: DEFAULT_LOGIN_REDIRECT,
 			});
 		} else return { error: "Email already in use with different provider!" };
-
-		return { success: "Email sent" };
 	} catch (error) {
 		if (error instanceof AuthError) {
 			switch (error.type) {
@@ -91,13 +130,13 @@ export const newVerification = async (verificationToken: string) => {
 		return { error: "Token does not exists!" };
 	}
 
-	const hasExpired = new Date(user?.verificationTokenExpires) < new Date();
+	const hasExpired = new Date(user?.verificationExpires) < new Date();
 
 	if (hasExpired) {
 		return { error: "Token has expired!" };
 	}
 
-	user.isVerified = true;
+	user.emailVerified = true;
 	user.save();
 
 	return { success: "Email verified!" };
@@ -155,6 +194,7 @@ export const passwordReset = async (
 	}
 
 	user.password = validatedFields.data.password;
+	user.passwordChangedAt = new Date();
 	user.save();
 
 	return { success: "Password updated!" };

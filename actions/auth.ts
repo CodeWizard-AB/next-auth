@@ -57,7 +57,17 @@ export const {
 			}
 
 			const findUser = await User.findById(user.id);
-			if (!findUser?.isVerified) return false;
+
+			if (!findUser?.emailVerified) return false;
+			if (!findUser?.twoFactorVerified) return false;
+
+			findUser.verificationToken = undefined;
+			findUser.verificationExpires = undefined;
+			findUser.twoFactorToken = undefined;
+			findUser.twoFactorExpires = undefined;
+			findUser.passwordResetToken = undefined;
+			findUser.passwordResetExpires = undefined;
+			findUser.save();
 
 			return true;
 		},

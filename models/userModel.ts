@@ -8,14 +8,17 @@ interface IUser extends Document {
 	email: string;
 	image: string;
 	role: "user" | "admin";
-	isVerified: boolean;
+	emailVerified: boolean;
+	twoFactorVerified: boolean;
 	authProvider: string;
 	isActive: boolean;
 	verificationToken: string;
-	verificationTokenExpires: Date;
+	verificationExpires: Date;
 	passwordChangedAt: Date;
 	passwordResetToken: string;
 	passwordResetExpires: Date;
+	twoFactorToken: string;
+	twoFactorExpires: Date;
 	isPasswordCorrect(password: string): Promise<boolean>;
 }
 
@@ -50,17 +53,20 @@ const userSchema = new Schema<IUser>(
 			default: "user",
 		},
 		authProvider: { type: String, required: true },
-		isVerified: { type: Boolean, required: true, default: false },
+		emailVerified: { type: Boolean, required: true, default: false },
+		twoFactorVerified: { type: Boolean, required: true, default: false },
 		isActive: {
 			type: Boolean,
 			default: true,
 			select: false,
 		},
 		verificationToken: String,
-		verificationTokenExpires: Date,
+		verificationExpires: Date,
 		passwordChangedAt: Date,
 		passwordResetToken: String,
 		passwordResetExpires: Date,
+		twoFactorToken: String,
+		twoFactorExpires: Date,
 	},
 	{ timestamps: true }
 );
