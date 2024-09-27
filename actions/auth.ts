@@ -26,12 +26,17 @@ export const {
 	session: { strategy: "jwt" },
 	callbacks: {
 		async session({ token, session }) {
-			if (token.sub && session.user) {
-				session.user.id = token.sub;
-			}
-
-			if (token.role && session.user) {
-				session.user.role = token.role as "admin" | "user";
+			try {
+				const user = await User.findById(token?.sub);
+				if (user) {
+					session.user = {
+						...session.user,
+						id: user.id,
+						role: user.role as "admin" | "user",
+					};
+				}
+			} catch (error) {
+				console.error("Data fetching problem");
 			}
 
 			return session;

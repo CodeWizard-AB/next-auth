@@ -6,6 +6,7 @@ import {
 	LoginSchema,
 	NewPasswordSchema,
 	ResetSchema,
+	SettingSchema,
 	SignupSchema,
 } from "@/schemas";
 import { auth, signIn, signOut } from "@/actions/auth";
@@ -198,4 +199,16 @@ export const passwordReset = async (
 	user.save();
 
 	return { success: "Password updated!" };
+};
+
+export const settings = async (data: z.infer<typeof SettingSchema>) => {
+	const user = await getCurrentUser();
+	const existUser = await User.findById(user?.id);
+
+	if (!user || !existUser) {
+		return { error: "Unauthorized" };
+	}
+
+	await User.findByIdAndUpdate(user?.id, data);
+	return { success: "Settings updated!" };
 };
