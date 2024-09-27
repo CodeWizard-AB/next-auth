@@ -13,6 +13,9 @@ interface IUser extends Document {
 	isActive: boolean;
 	verificationToken: string;
 	verificationTokenExpires: Date;
+	passwordChangedAt: Date;
+	passwordResetToken: string;
+	passwordResetExpires: Date;
 	isPasswordCorrect(password: string): Promise<boolean>;
 }
 
@@ -55,6 +58,9 @@ const userSchema = new Schema<IUser>(
 		},
 		verificationToken: String,
 		verificationTokenExpires: Date,
+		passwordChangedAt: Date,
+		passwordResetToken: String,
+		passwordResetExpires: Date,
 	},
 	{ timestamps: true }
 );

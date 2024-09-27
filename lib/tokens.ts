@@ -10,3 +10,13 @@ export const generateVerficationToken = async (email: string) => {
 	);
 	return token;
 };
+
+export const generateResetToken = async (email: string) => {
+	const token = uuidv4();
+	const expires = new Date(new Date().getTime() + 3600 * 1000);
+	await User.updateOne(
+		{ email },
+		{ passwordResetToken: token, passwordResetExpires: expires }
+	);
+	return token;
+};

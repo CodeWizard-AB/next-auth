@@ -19,6 +19,8 @@ import FormError from "@/components/FormError";
 import FormSuccess from "../FormSuccess";
 import { login } from "@/actions/users";
 import { useState, useTransition } from "react";
+import Link from "next/link";
+import { ClipLoader } from "react-spinners";
 
 export default function LoginForm() {
 	const [error, setError] = useState<string | undefined>();
@@ -87,10 +89,13 @@ export default function LoginForm() {
 							</FormItem>
 						)}
 					/>
+					<Button size="sm" variant="link" asChild className="px-0 font-normal">
+						<Link href="/auth/reset">Forgot password</Link>
+					</Button>
 					<FormError message={error} />
 					<FormSuccess message={success} />
 					<Button type="submit" disabled={isPending} className="w-full">
-						{isPending ? "Loading.." : "Login"}
+						{isPending ? <ClipLoader color="white" size={20} /> : "Login"}
 					</Button>
 				</form>
 			</Form>
