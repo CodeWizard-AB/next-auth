@@ -9,6 +9,7 @@ declare module "next-auth" {
 	interface Session {
 		user: {
 			role: "user" | "admin";
+			provider: string;
 		} & DefaultSession["user"];
 	}
 }
@@ -32,7 +33,10 @@ export const {
 					session.user = {
 						...session.user,
 						id: user.id,
-						role: user.role as "admin" | "user",
+						role: user.role,
+						name: user.name,
+						email: user.email,
+						provider: user.authProvider,
 					};
 				}
 			} catch (error) {

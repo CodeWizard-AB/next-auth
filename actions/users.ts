@@ -203,12 +203,38 @@ export const passwordReset = async (
 
 export const settings = async (data: z.infer<typeof SettingSchema>) => {
 	const user = await getCurrentUser();
-	const existUser = await User.findById(user?.id);
+	const existingUser = await User.findById(user?.id).select("+password");
 
-	if (!user || !existUser) {
+	if (!user || !existingUser) {
 		return { error: "Unauthorized" };
 	}
 
-	await User.findByIdAndUpdate(user?.id, data);
+	const { password, newPassword, email, name } = data;
+
+	if (email && email !== existingUser.user) {
+		const findUser = await User.findOne({ email });
+
+		if (findUser && existingUser.id !== user.id) {
+			return { error: "Email already in use" };
+		}
+
+		const token = await generateVerficationToken(email);
+		await sendVerificationEmail(email, token);
+
+		return { success: "Verification email sent!" };
+	}
+
+	existingUser.name = name;
+
+	if (password && newPassword && existingUser.password) {
+		if (await bcrypt.compare(password, existingUser.password)) {
+			existingUser.password = newPassword;
+			existingUser.passwordChangedAt = new Date();
+		} else {
+			return { error: "Incorrect password!" };
+		}
+	}
+
+	existingUser.save();
 	return { success: "Settings updated!" };
 };
